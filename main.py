@@ -4,6 +4,7 @@ from pprint import pprint
 import datetime
 import time
 import json
+from tqdm import tqdm
 
 
 class VKDownloader:
@@ -15,21 +16,22 @@ class VKDownloader:
         params = {'access_token': vktoken, 'v': '5.131', 'owner_id': vk_user_id, 'album_id': 'profile',
                   'extended': '1', 'photo_sizes': '1', 'count': count}
         result = requests.get(url, params=params).json()
-        # pprint(result)  # почему лезут все фото а не 5? Убрать к дьяволу. / исправлено
+        # pprint(result)  # почему лезут все фото а не 5? Убрать к дьяволу. / исправлено / удалить
         return result  # {response{count, items[]}}
 
     def get_all_photo(self):
         if not os.path.exists('vk_photo_backup'):
             os.mkdir('vk_photo_backup')  # создаём папку, если нету
-        load = self.get_photo()
-        count_all = load['response']['count']  # всего фото в альбоме
-        # print(count_all)
         count = 5  # Кол-во получаемых записей
+        load = self.get_photo(count)
+        count_all = load['response']['count']  # всего фото в альбоме (не используется, вдруг пригодится))
+        # print(count_all)  # Удалить
         photos = []  # Полученные фото
         max_photo = {}  # Фото с максимальным разрешением
-        for photo in load['response']['items']: # Ходим по фоткам
+        print('Обработка данных:')
+        for photo in tqdm(load['response']['items']): # Ходим по фоткам
             max_size = 0
-            # print(photo)
+            # print(photo)  # удалить
             for size in photo['sizes']:  # Ищем максимальный размер
                 if size['width'] > max_size:
                     max_size = size['width']
@@ -41,15 +43,17 @@ class VKDownloader:
                 date = time.strftime('%d.%m.%Y', time.localtime(photo['date']))
                 max_photo[f'{photo["likes"]["count"]}_{date}'] = size['url']
                 info['file_name'] = f'{photo["likes"]["count"]}_{date}.jpg'  # либо сяк, если есть
-            # print(max_size)
+            # print(max_size)  # удалить
             info['size'] = size['type']
             photos.append(info)  # Добавление в список в требуемом виде
         with open('vk_photo_backup.json', 'w') as file:
             json.dump(photos, file, indent=4, sort_keys=False)  # сохраняем .json
-        for name, url in max_photo.items():
+        time.sleep(0.1)
+        print('Скачивание фото:')
+        for name, url in tqdm(max_photo.items()):
             with open(f'vk_photo_backup/{name}.jpg', 'wb') as file:
                 image = requests.get(url)
-                file.write(image.content)
+                file.write(image.content)  # Сохраняем фото в папку
 
 
         #
