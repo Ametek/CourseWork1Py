@@ -13,8 +13,8 @@ class VKDownloader:
         url = 'https://api.vk.com/method/photos.get'
         params = {'access_token': vktoken, 'v': '5.131', 'owner_id': vk_user_id, 'album_id': 'profile',
                   'extended': '1', 'photo_sizes': '1', 'count': count}
-        result = requests.get(url, params=params).json()
-        return result
+        response = requests.get(url, params=params).json()
+        return response
 
     def get_all_photo(self):
         if not os.path.exists('vk_photo_backup'):
@@ -66,23 +66,33 @@ class YaUploader:
         headers = self.get_headers()
         params = {'path': f'{path_to_ya}/{file_name}', 'overwrite': 'True'}
         response = requests.get(url=upload_url, headers=headers, params=params)
+        response.raise_for_status()
         return response.json()
 
     def create_folder(self, path_to_ya: str):
         url = 'https://cloud-api.yandex.net/v1/disk/resources'
         headers = self.get_headers()
         params = {'path': path_to_ya, 'overwrite': 'False'}
-        requests.put(url=url, headers=headers, params=params)
+        response = requests.put(url=url, headers=headers, params=params)
+        status_code = response.status_code
+        if status_code == 201:
+            print('Папка на ЯндексДиске успешно создана')
+        elif status_code == 409:
+            print('Папка на ЯндексДиске уже существует')
+        else:
+            print(f'Ошибка создания папки № {status_code}')
+            response.raise_for_status()
 
-    def upload_file(self, path_to_file):
-        path_to_ya = 'vk_photo_backup'  # имя папки на ЯДиске
-        self.create_folder(path_to_ya=path_to_ya)
+    def upload_file(self, path_to_file, path_to_ya):
+        # path_to_ya = 'vk_photo_backup'  # имя папки на ЯДиске
         href = self._get_upload_link(path_to_ya=path_to_ya).get('href', '')
-        requests.put(href, data=open(path_to_file, 'rb'))
+        response = requests.put(href, data=open(path_to_file, 'rb'))
+        response.raise_for_status()
 
 
 if __name__ == '__main__':
-    vk_user_id = input('Введите id пользователя ВК: ')
+    # vk_user_id = input('Введите id пользователя ВК: ')
+    vk_user_id = 57629630
     ya_token = input('Введите токен ЯндексДиск: ')
     with open('vktoken.txt', 'r') as file:
         vktoken = file.readline().strip()
@@ -91,12 +101,14 @@ if __name__ == '__main__':
     downloader.get_all_photo()
 
     uploader = YaUploader(ya_token)
+    path_to_ya = 'vk_photo_backup'
+    uploader.create_folder(path_to_ya=path_to_ya)
     folder_contents = os.listdir('vk_photo_backup')
     time.sleep(0.1)
     print('Загрузка фото на ЯндексДиск:')
     for file in tqdm(folder_contents, ncols=100, unit_scale=True):  # Ходим по файлам в папке и сохраняем на ЯДиск
         file_name = file
         file_path = './vk_photo_backup/' + file
-        uploader.upload_file(path_to_file=file_path)
+        uploader.upload_file(path_to_file=file_path, path_to_ya=path_to_ya)
     print('Все операции успешно завершены')
     print(f'На ЯДиск загружено {len(folder_contents)} фото')
