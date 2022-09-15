@@ -6,8 +6,7 @@ import Uploader
 
 
 if __name__ == '__main__':
-    # vk_user_id = input('Введите id пользователя ВК: ')
-    vk_user_id = 57629630
+    vk_user_id = input('Введите id пользователя ВК: ')
     ya_token = input('Введите токен ЯндексДиск: ')
     with open('vktoken.txt', 'r') as file:
         vktoken = file.readline().strip()
